@@ -1,51 +1,38 @@
-const { ethers } = require('hardhat');
 const Web3 = require('web3');
+const web3 = new Web3('YOUR_ETHEREUM_NODE_URL'); // Replace with your Ethereum node URL
 
 async function main() {
-  const providerType = process.env.PROVIDER_TYPE || 'hardhat'; // Default to Hardhat provider
-  console.log(`Using ${providerType} provider`);
+  const senderAddress = 'SENDER_ADDRESS';
+  const receiverAddress = 'RECEIVER_ADDRESS';
+  const privateKey = 'SENDER_PRIVATE_KEY'; // Replace with the private key of the sender
 
-  let flatcoinContract;
-  let priceFeedAddress;
+  const senderNonce = await web3.eth.getTransactionCount(senderAddress);
 
-  if (providerType === 'hardhat') {
-    // Use Hardhat provider
-    const [deployer] = await ethers.getSigners();
+  // Replace with your Flatcoin contract address and ABI
+  const flatcoinAddress = 'FLATCOIN_CONTRACT_ADDRESS';
+  const flatcoinABI = [...]; // Include the ABI of your Flatcoin contract
 
-    // Replace with your Flatcoin contract address
-    const flatcoinAddress = 'YOUR_FLATCOIN_CONTRACT_ADDRESS';
+  const flatcoinContract = new web3.eth.Contract(flatcoinABI, flatcoinAddress);
 
-    // Replace with your Chainlink price feed address
-    priceFeedAddress = 'CHAINLINK_PRICE_FEED_ADDRESS';
+  // Amount of Flatcoins to send (in Wei)
+  const amount = web3.utils.toBN(web3.utils.toWei('10', 'ether')); // Adjust the amount as needed
 
-    const Flatcoin = await ethers.getContractFactory('Flatcoin'); // Replace 'Flatcoin' with your contract name
-    flatcoinContract = await Flatcoin.attach(flatcoinAddress);
-  } else if (providerType === 'web3') {
-    // Use Web3.js provider
-    const web3 = new Web3('https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID'); // Replace with your Infura project ID or Ethereum node URL
+  // Encode the transfer function call
+  const data = flatcoinContract.methods.transfer(receiverAddress, amount).encodeABI();
 
-    const flatcoinAddress = 'YOUR_FLATCOIN_CONTRACT_ADDRESS';
-    const privateKey = 'YOUR_PRIVATE_KEY'; // Replace with the private key of the contract owner
+  const txObject = {
+    from: senderAddress,
+    to: flatcoinAddress,
+    data: data,
+    nonce: senderNonce,
+    gas: 21000, // Gas limit
+    gasPrice: web3.utils.toWei('50', 'gwei'), // Gas price in Gwei
+  };
 
-    const FlatcoinABI = [...]; // Include the ABI of your Flatcoin contract
+  const signedTx = await web3.eth.accounts.signTransaction(txObject, privateKey);
+  const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
 
-    flatcoinContract = new web3.eth.Contract(FlatcoinABI, flatcoinAddress);
-
-    // Replace with your Chainlink price feed address
-    priceFeedAddress = 'CHAINLINK_PRICE_FEED_ADDRESS';
-  } else {
-    console.error('Invalid provider type. Use "hardhat" or "web3".');
-    process.exit(1);
-  }
-
-  // Example: Add a new good to the basket
-  const goodName = 'NewGood';
-  const goodWeight = 100;
-
-  const tx = await flatcoinContract.methods.addGoodToBasket(goodName, goodWeight, priceFeedAddress);
-  await tx.send();
-
-  console.log(`Good ${goodName} added to the basket.`);
+  console.log(`Transaction hash: ${txReceipt.transactionHash}`);
 }
 
 main()
@@ -54,3 +41,4 @@ main()
     console.error(error);
     process.exit(1);
   });
+
